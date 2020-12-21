@@ -1,5 +1,3 @@
-title: [Detecting Fraudulent Credit Card Transactions]
-
 ![jpg](figures/cc_fraud.jpg)
 
 ## Introduction
