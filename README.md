@@ -485,7 +485,7 @@ plt.title('Class Distribution \n (0 = Genuine | 1 = Fraudulent)');
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_24_0.png)
+![png](figures/credit_card_fraud_detection_24_0.png)
 
 
 
@@ -559,7 +559,7 @@ ax2.set_title('Amount Distribution');
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_32_0.png)
+![png](figures/credit_card_fraud_detection_32_0.png)
 
 
 
@@ -575,7 +575,7 @@ ax2.set_title('Amount Distribution');
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_33_0.png)
+![png](figures/credit_card_fraud_detection_33_0.png)
 
 
 Both of these features have interesting distributions. 
@@ -605,7 +605,7 @@ plt.tight_layout();
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_36_0.png)
+![png](figures/credit_card_fraud_detection_36_0.png)
 
 
 As we can see, each of the features has a different distribution, and many have outliers. They all appear to be centered on 0, but the range of values differs across the features. 
@@ -701,7 +701,7 @@ sns.countplot(y_train_upsample);
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_50_0.png)
+![png](figures/credit_card_fraud_detection_50_0.png)
 
 
 We can now see that thanks to SMOTE, we have an equal number of fraudulent and genuine transactions. This will help us to create more powerful models.
@@ -1055,7 +1055,7 @@ plot_learning_curve(lgb_pipeline, 'Light GBM Learning Curves', X_train, y_train,
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_76_0.png)
+![png](figures/credit_card_fraud_detection_76_0.png)
 
 
 These curves show us that as we increase the number of training examples, both training and validation performance decrease. This means that our model is overfitting. To combat overfitting, we will tune a few of our model parameters to weaken individual decision trees through regularization. While hyperparameter optimization would normally be a good option, it would take very long in this case, so we will tune our parameters manually and save hyperparameter optimization for the XGBoost model. 
@@ -1095,7 +1095,7 @@ print('Time: {:.2f}'.format(time.time()-start))
 
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_79_1.png)
+![png](figures/credit_card_fraud_detection_79_1.png)
 
 
 
@@ -1189,7 +1189,7 @@ plot_learning_curve(lgb_pipeline, 'Light GBM Learning Curves', X_train, y_train,
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_86_0.png)
+![png](figures/credit_card_fraud_detection_86_0.png)
 
 
 
@@ -1307,7 +1307,7 @@ plot_learning_curve(xgb_pipeline, 'XGBoost Learning Curves', X_train, y_train, c
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_95_0.png)
+![png](figures/credit_card_fraud_detection_95_0.png)
 
 
 
@@ -1518,7 +1518,7 @@ plot_confusion(y_test, y_pred)
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_108_0.png)
+![png](figures/credit_card_fraud_detection_108_0.png)
 
 
 Our neural network trained on the original imbalanced data had very high True Negative Rate, correctly classifying virtually 100% of genuine transactions as genuine. However, this model also had a high False Negative Rate, incorrectly classifying 27% of fraudulent transactions as genuine. 
@@ -1657,7 +1657,7 @@ plot_confusion(y_test, y_pred)
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_115_0.png)
+![png](figures/credit_card_fraud_detection_115_0.png)
 
 
 Fortunately, we see that our neural network trained on the SMOTE upsampled data had a very high True Negative Rate and a lower False Negative Rate. This model will miss 16% of fraudulent transactions, which is not perfect--however, it is much better than the previous model. It will also incorrectly classify 3% of genuine transactions as fraud, but we are less concerned about that, as we want to ensure that we catch as much fraud as possible. 
@@ -1685,7 +1685,7 @@ plot_confusion(y_test, y_pred)
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_119_0.png)
+![png](figures/credit_card_fraud_detection_119_0.png)
 
 
 The results of the confusion matrix show that the Light GBM model did not perform as well as the SMOTE neural network in terms of minimizing the False Negative Rate. However, it still performed better than the neural network trained on the imbalanced data. 
@@ -1713,7 +1713,7 @@ plot_confusion(y_test, y_pred)
 ```
 
 
-![png](credit_card_fraud_detection_files/credit_card_fraud_detection_122_0.png)
+![png](figures/credit_card_fraud_detection_122_0.png)
 
 
 Our last model, XGBoost, had a False Negative Rate of 12%, which was the lowest of the four models we evaluated. Interestingly, the model achieved this lowest False Negative Rate while maintaining a True Negative Rate of 99%, which is very good. This model, therefore, appears to be the most effective, as it finds an excellent balance between precision and recall. 
