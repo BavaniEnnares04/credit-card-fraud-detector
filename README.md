@@ -1,12 +1,12 @@
-# Detecting Fraudulent Credit Card Transactions
+# Credit Card Fraud Detection
 
 ![jpg](figures/cc_fraud.jpg)
 
 ## Introduction
 
-In this project, we will develop classification systems for the detection of fraudulent credit card activity, using a dataset of credit card transactions provided on [Kaggle](https://www.kaggle.com/mlg-ulb/creditcardfraud). As most credit card transactions are genuine, this task will require us to work with a highly imbalanced dataset. Thus, to build a powerful classifier that is capable of detecting fraud, we will need to solve the issue of data imbalance, which will be a key consideration throughout this project. 
+In this project, we will develop **classification systems for the detection of fraudulent credit card activity**, using a dataset of credit card transactions provided on [Kaggle](https://www.kaggle.com/mlg-ulb/creditcardfraud). As most credit card transactions are genuine, this task will require us to work with a highly imbalanced dataset. Thus, to build a powerful classifier that is capable of detecting fraud, we will need to solve the issue of data imbalance, which will be a key consideration throughout this project.
 
-As we walk through this project, all steps will be thoroughly explained and documented. Looking ahead, we will tackle the data imbalance problem using an upsampling/oversamplling method known as Synthetic Minority Oversampling Technique, or **SMOTE**. We will clean and process our data before feeding it to 2 key models of interest: **Light GBM and XGBoost**. Lastly, we will evaluate our models on a test set of credit card transactions to determine the precision and recall of our classifiers, and we will also assess the performance of an **artificial neural network (ANN)**. Our goal is to build a fraud detection classifier that maximizes F1 score by achieving high precision and recall. 
+As we walk through this project, all steps will be thoroughly explained and documented. Looking ahead, we will tackle the data imbalance problem using an upsampling/oversamplling method known as Synthetic Minority Oversampling Technique, or **SMOTE**. We will clean and process our data before feeding it to 2 key models of interest: **Light GBM and XGBoost**. Lastly, we will evaluate our models on a test set of credit card transactions to determine the precision and recall of our classifiers, and we will also assess the performance of an **artificial neural network (ANN)**. Our goal is to build a fraud detection classifier that maximizes F1 score by achieving high precision and recall.
 
 
 
@@ -15,8 +15,10 @@ As we walk through this project, all steps will be thoroughly explained and docu
 ## Setup
 In this section, we will set up our environment by importing libraries, managing packages, and writing utility functions for later use.
 
-### Installing LightGBM 
-We will be using Light GBM (LGBM) with GPU in this Google Colab notebook. The version of Light GBM installed by default does not support GPU. To make use of GPU support, we need to uninstall the existing LGBM and reinstall the GPU version.
+**Note:** this project was developed in Google's Colaboratory environment, so some of the setup code is specific to Colab's environment. For example, we will load the data from a mounted Google Drive rather than from our GitHub repository, as the file size exceeds GitHub's limit.
+
+### Installing LightGBM
+We will be using Light GBM (LGBM) with GPU in the Google Colab notebook. The version of Light GBM installed by default does not support GPU. To make use of GPU support, we need to uninstall the existing LGBM and build the GPU version.
 
 
 ```
@@ -37,7 +39,7 @@ We will be using Light GBM (LGBM) with GPU in this Google Colab notebook. The ve
 ! git clone --recursive https://github.com/Microsoft/LightGBM
 
 #You can run this oneliner which will build and compile LightGBM with GPU enabled in colab:
-! cd LightGBM && rm -rf build && mkdir build && cd build && cmake -DUSE_GPU=1 ../../LightGBM && make -j4 && cd ../python-package && python3 setup.py install --precompile --gpu;    
+! cd LightGBM && rm -rf build && mkdir build && cd build && cmake -DUSE_GPU=1 ../../LightGBM && make -j4 && cd ../python-package && python3 setup.py install --precompile --gpu;
 ```
 
 ### Imports
@@ -88,7 +90,7 @@ warnings.filterwarnings("ignore")
 ```
 
 ### Loading the data
-The dataset has been provided by ULB Machine Learning on Kaggle. We are importing it from Google Drive storage, but the data can also be accessed from the [Kaggle API](https://www.kaggle.com/mlg-ulb/creditcardfraud). 
+The dataset has been provided by ULB Machine Learning on Kaggle. We are importing it from Google Drive storage, but the data can also be accessed from the [Kaggle API](https://www.kaggle.com/mlg-ulb/creditcardfraud).
 
 
 ```
@@ -98,9 +100,10 @@ credit_card = pd.read_csv(drive_url)
 ```
 
 ### Utility Functions
+We will create a couple of useful functions to help us repeat certain tasks. These will not become relevant until later in the project. We will write functions to plot learning curves and confusion matrices.
 
-#### Plotting learning curves
-Adapted from the [Scikit-learn documentation](https://scikit-learn.org/stable/auto_examples/model_selection/plot_learning_curve.html).
+#### Plotting Learning Curves
+Adapted from the [Scikit-learn documentation](https://scikit-learn.org/stable/auto_examples/model_selection/plot_learning_curve.html). This function will allow us to easily plot learning curves, which will help us to understand model performance and whether our models are overfitting or underfitting.
 
 
 ```
@@ -108,13 +111,13 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None,
                         cv=None, n_jobs=-1, train_sizes=np.linspace(.1, 1.0, 5)):
   if axes is None:
     _, axes = plt.subplots(1, 3, figsize=(20, 5))
-  
+
   axes[0].set_title(title)
   if ylim is not None:
     axes[0].set_ylim(*ylim)
     axes[0].set_xlabel("Training examples")
     axes[0].set_ylabel("Score")
-  
+
   train_sizes, train_scores, test_scores, fit_times, _ = learning_curve(
       estimator, X, y, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes,
       return_times=True, scoring = 'f1')
@@ -160,7 +163,7 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None,
   return plt
 ```
 
-### Plotting Confusion Matrices
+#### Plotting Confusion Matrices
 Since we will be using Keras, we will make a simple function to plot confusion matrices generated by sklearn. This will allow us to avoid having to use a Keras estimator wrapper for sklearn.
 
 
@@ -175,254 +178,35 @@ def plot_confusion(y_test, y_pred):
 ```
 
 ## Exploratory Data Analysis and Visualization
-In this section, we will explore the data and determine the best approaches to preprocessing, which will be performed in the following section. 
+In this section, we will explore the data and determine the best approaches to preprocessing, which will be performed in the following section.
 
-First, let's preview the data to get a sense for what we are working with. 
+First, let's preview the data to get a sense for what we are working with.
 
 
 ```
-credit_card.head()
+print(credit_card.head())
 ```
 
+       Time        V1        V2        V3  ...       V27       V28  Amount  Class
+    0   0.0 -1.359807 -0.072781  2.536347  ...  0.133558 -0.021053  149.62      0
+    1   0.0  1.191857  0.266151  0.166480  ... -0.008983  0.014724    2.69      0
+    2   1.0 -1.358354 -1.340163  1.773209  ... -0.055353 -0.059752  378.66      0
+    3   1.0 -0.966272 -0.185226  1.792993  ...  0.062723  0.061458  123.50      0
+    4   2.0 -1.158233  0.877737  1.548718  ...  0.219422  0.215153   69.99      0
 
+    [5 rows x 31 columns]
 
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Time</th>
-      <th>V1</th>
-      <th>V2</th>
-      <th>V3</th>
-      <th>V4</th>
-      <th>V5</th>
-      <th>V6</th>
-      <th>V7</th>
-      <th>V8</th>
-      <th>V9</th>
-      <th>V10</th>
-      <th>V11</th>
-      <th>V12</th>
-      <th>V13</th>
-      <th>V14</th>
-      <th>V15</th>
-      <th>V16</th>
-      <th>V17</th>
-      <th>V18</th>
-      <th>V19</th>
-      <th>V20</th>
-      <th>V21</th>
-      <th>V22</th>
-      <th>V23</th>
-      <th>V24</th>
-      <th>V25</th>
-      <th>V26</th>
-      <th>V27</th>
-      <th>V28</th>
-      <th>Amount</th>
-      <th>Class</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>0.0</td>
-      <td>-1.359807</td>
-      <td>-0.072781</td>
-      <td>2.536347</td>
-      <td>1.378155</td>
-      <td>-0.338321</td>
-      <td>0.462388</td>
-      <td>0.239599</td>
-      <td>0.098698</td>
-      <td>0.363787</td>
-      <td>0.090794</td>
-      <td>-0.551600</td>
-      <td>-0.617801</td>
-      <td>-0.991390</td>
-      <td>-0.311169</td>
-      <td>1.468177</td>
-      <td>-0.470401</td>
-      <td>0.207971</td>
-      <td>0.025791</td>
-      <td>0.403993</td>
-      <td>0.251412</td>
-      <td>-0.018307</td>
-      <td>0.277838</td>
-      <td>-0.110474</td>
-      <td>0.066928</td>
-      <td>0.128539</td>
-      <td>-0.189115</td>
-      <td>0.133558</td>
-      <td>-0.021053</td>
-      <td>149.62</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>0.0</td>
-      <td>1.191857</td>
-      <td>0.266151</td>
-      <td>0.166480</td>
-      <td>0.448154</td>
-      <td>0.060018</td>
-      <td>-0.082361</td>
-      <td>-0.078803</td>
-      <td>0.085102</td>
-      <td>-0.255425</td>
-      <td>-0.166974</td>
-      <td>1.612727</td>
-      <td>1.065235</td>
-      <td>0.489095</td>
-      <td>-0.143772</td>
-      <td>0.635558</td>
-      <td>0.463917</td>
-      <td>-0.114805</td>
-      <td>-0.183361</td>
-      <td>-0.145783</td>
-      <td>-0.069083</td>
-      <td>-0.225775</td>
-      <td>-0.638672</td>
-      <td>0.101288</td>
-      <td>-0.339846</td>
-      <td>0.167170</td>
-      <td>0.125895</td>
-      <td>-0.008983</td>
-      <td>0.014724</td>
-      <td>2.69</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>1.0</td>
-      <td>-1.358354</td>
-      <td>-1.340163</td>
-      <td>1.773209</td>
-      <td>0.379780</td>
-      <td>-0.503198</td>
-      <td>1.800499</td>
-      <td>0.791461</td>
-      <td>0.247676</td>
-      <td>-1.514654</td>
-      <td>0.207643</td>
-      <td>0.624501</td>
-      <td>0.066084</td>
-      <td>0.717293</td>
-      <td>-0.165946</td>
-      <td>2.345865</td>
-      <td>-2.890083</td>
-      <td>1.109969</td>
-      <td>-0.121359</td>
-      <td>-2.261857</td>
-      <td>0.524980</td>
-      <td>0.247998</td>
-      <td>0.771679</td>
-      <td>0.909412</td>
-      <td>-0.689281</td>
-      <td>-0.327642</td>
-      <td>-0.139097</td>
-      <td>-0.055353</td>
-      <td>-0.059752</td>
-      <td>378.66</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>1.0</td>
-      <td>-0.966272</td>
-      <td>-0.185226</td>
-      <td>1.792993</td>
-      <td>-0.863291</td>
-      <td>-0.010309</td>
-      <td>1.247203</td>
-      <td>0.237609</td>
-      <td>0.377436</td>
-      <td>-1.387024</td>
-      <td>-0.054952</td>
-      <td>-0.226487</td>
-      <td>0.178228</td>
-      <td>0.507757</td>
-      <td>-0.287924</td>
-      <td>-0.631418</td>
-      <td>-1.059647</td>
-      <td>-0.684093</td>
-      <td>1.965775</td>
-      <td>-1.232622</td>
-      <td>-0.208038</td>
-      <td>-0.108300</td>
-      <td>0.005274</td>
-      <td>-0.190321</td>
-      <td>-1.175575</td>
-      <td>0.647376</td>
-      <td>-0.221929</td>
-      <td>0.062723</td>
-      <td>0.061458</td>
-      <td>123.50</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>2.0</td>
-      <td>-1.158233</td>
-      <td>0.877737</td>
-      <td>1.548718</td>
-      <td>0.403034</td>
-      <td>-0.407193</td>
-      <td>0.095921</td>
-      <td>0.592941</td>
-      <td>-0.270533</td>
-      <td>0.817739</td>
-      <td>0.753074</td>
-      <td>-0.822843</td>
-      <td>0.538196</td>
-      <td>1.345852</td>
-      <td>-1.119670</td>
-      <td>0.175121</td>
-      <td>-0.451449</td>
-      <td>-0.237033</td>
-      <td>-0.038195</td>
-      <td>0.803487</td>
-      <td>0.408542</td>
-      <td>-0.009431</td>
-      <td>0.798278</td>
-      <td>-0.137458</td>
-      <td>0.141267</td>
-      <td>-0.206010</td>
-      <td>0.502292</td>
-      <td>0.219422</td>
-      <td>0.215153</td>
-      <td>69.99</td>
-      <td>0</td>
-    </tr>
-  </tbody>
-</table>
-</div>
 
 
 
 ### Features
-We have 28 anonymized features in our data, each of the `float64` datatype. We also have data on the transaction amount, time, and class. 
+We have 28 anonymized features in our data, each of the `float64` datatype. We also have data on the transaction amount, time, and class.
 
-**Anonymized Features**: The anonymized features have also undergone dimensionality reduction with PCE in the original dataset used in this project. This was likely done to both anonymize the data and to make the data easier to work with. 
+**Anonymized Features**: The anonymized features have also undergone dimensionality reduction with PCE in the original dataset used in this project. This was likely done to both anonymize the data and to make the data easier to work with.
 
-**Time**: The time is represented as the number of seconds since the time of the first transaction in the dataset. 
+**Time**: The time is represented as the number of seconds since the time of the first transaction in the dataset.
 
-**Class**: The Class variable labels transactions as either fraudulent (1) or non-fraudulent (0). This will serve as our target. We will use the features in the dataset to predict the Class. 
+**Class**: The Class variable labels transactions as either fraudulent (1) or non-fraudulent (0). This will serve as our target. We will use the features in the dataset to predict the Class.
 
 
 ```
@@ -478,17 +262,12 @@ credit_card['Time'] = credit_card['Time'].astype(int)
 
 As mentioned, we can expect the data to be imbalanced, as fraudulent transactions are rare relative to genuine transactions.
 
-
 ```
 plt.figure(figsize=(10,5))
 sns.countplot(x = 'Class', data = credit_card)
 plt.title('Class Distribution \n (0 = Genuine | 1 = Fraudulent)');
 ```
-
-
 ![png](figures/credit_card_fraud_detection_24_0.png)
-
-
 
 ```
 # Balance of target variable
@@ -502,10 +281,10 @@ print(credit_card['Class'].value_counts(normalize = True)*100)
 
 We can see here that the data is heavily imbalanced, with 99.8% of the transactions being normal and only 0.17% of transactions being fraudulent. This will make our problem more difficult, as predictive models are likely to simply guess that transactions are genuine. In fact, if we randomly guess that a transaction is genuine, we will have an accuracy of 99.8%!
 
-To counter this, we will consider undersampling and oversampling methods, which will allow us to work with the imbalanced data. Before we do so, however, we will continue to explore the dataset. 
+To counter this, we will consider undersampling and oversampling methods, which will allow us to work with the imbalanced data. Before we do so, however, we will continue to explore the dataset.
 
 ### Separating the Test Data
-Before we look at any of our data, we need to separate a test set for evaluation of our models. We want to do this before any preprocessing, as the preprocessing would be influenced by the test data, which is a form of data leakage. We will treat this project as if it was a real-world implementation of the task at hand: we will build a model with the data we have (training data), and we will use the model to make predictions on new credit card transactions (test data) as we receive them. 
+Before we look at any of our data, we need to separate a test set for evaluation of our models. We want to do this before any preprocessing, as the preprocessing would be influenced by the test data, which is a form of data leakage. We will treat this project as if it was a real-world implementation of the task at hand: we will build a model with the data we have (training data), and we will use the model to make predictions on new credit card transactions (test data) as we receive them.
 
 Because the target variable is heavily skewed, we will stratify our splits to ensure the proper proportion of fraudulent and genuine transactions is included in our training and testing datasets. Since the data is currently ordered by `Time`, we will also shuffle the data.
 
@@ -515,7 +294,7 @@ train, test = train_test_split(credit_card, test_size = 0.2, shuffle=True, strat
 print("Train Shape: {} \nTest Shape: {}".format(train.shape, test.shape))
 ```
 
-    Train Shape: (227845, 31) 
+    Train Shape: (227845, 31)
     Test Shape: (56962, 31)
 
 
@@ -528,18 +307,18 @@ print("Test: \n")
 print(test['Class'].value_counts(normalize = True)*100, '\n')
 ```
 
-    Train: 
-    
+    Train:
+
     0    99.827075
     1     0.172925
-    Name: Class, dtype: float64 
-    
-    Test: 
-    
+    Name: Class, dtype: float64
+
+    Test:
+
     0    99.827955
     1     0.172045
-    Name: Class, dtype: float64 
-    
+    Name: Class, dtype: float64
+
 
 
 We have now split our data and confirmed that the proper proportion of fraudulent transactions is represented in each dataset.
@@ -558,8 +337,6 @@ ax1.set_title('Time Distribution')
 sns.kdeplot(ax=ax2, data=train, x='Amount', color='r', fill=True)
 ax2.set_title('Amount Distribution');
 ```
-
-
 ![png](figures/credit_card_fraud_detection_32_0.png)
 
 
@@ -574,12 +351,11 @@ ax1.set_title('Time Distribution')
 sns.boxplot(ax=ax2, data=train, x='Amount', color='r')
 ax2.set_title('Amount Distribution');
 ```
-
-
 ![png](figures/credit_card_fraud_detection_33_0.png)
 
 
-Both of these features have interesting distributions. 
+
+Both of these features have interesting distributions.
 
 The `Amount` column is heavily right skewed, and we can see that although the average transaction amount is \$88, the maximum value is over $25,000! There are many outliers in this feature column, and we will consider scaling this feature in later steps.
 
@@ -605,14 +381,15 @@ for col in range(len(anon_df.columns)):
 plt.tight_layout();
 ```
 
-
 ![png](figures/credit_card_fraud_detection_36_0.png)
 
 
-As we can see, each of the features has a different distribution, and many have outliers. They all appear to be centered on 0, but the range of values differs across the features. 
+
+
+As we can see, each of the features has a different distribution, and many have outliers. They all appear to be centered on 0, but the range of values differs across the features.
 
 ## Data Preprocessing
-Now that we have visualized our data, we will preprocess the data prior to developing our machine learning algorithms. 
+Now that we have visualized our data, we will preprocess the data prior to developing our machine learning algorithms.
 
 ### Missing Values
 
@@ -632,9 +409,9 @@ train.isnull().values.any()
 There are no missing values in our dataset, so there is no need for further action on this front.
 
 ### Feature Scaling
-As we have seen, many of our features are skewed, and they have very diverse ranges of values. To correct for this, we will scale our data. 
+As we have seen, many of our features are skewed, and they have very diverse ranges of values. To correct for this, we will scale our data.
 
-While the anonymized features have already been reduced through PCA and thus undergone initial scaling prior to the PCA, we will scale them in this step. The reason for doing so is to bring all of our features to similar scales, even if they have been scaled before. Our chief concern in this regard is to ensure that our models are able to make predictions based on the information carried by our features, rather than by their ranges. 
+While the anonymized features have already been reduced through PCA and thus undergone initial scaling prior to the PCA, we will scale them in this step. The reason for doing so is to bring all of our features to similar scales, even if they have been scaled before. Our chief concern in this regard is to ensure that our models are able to make predictions based on the information carried by our features, rather than by their ranges.
 
 
 ```
@@ -645,7 +422,7 @@ y_test = test['Class']
 print("X_train shape: {} \ny_train shape: {}\nX_test shape: {}\ny_test shape: {}".format(X_train.shape, y_train.shape, X_test.shape, y_test.shape))
 ```
 
-    X_train shape: (227845, 30) 
+    X_train shape: (227845, 30)
     y_train shape: (227845,)
     X_test shape: (56962, 30)
     y_test shape: (56962,)
@@ -680,7 +457,7 @@ In this project, we will use SMOTE to artificially expand our dataset and to cor
 
 ### Synthetic Minority Oversampling Technique (SMOTE)
 
-Let's try out SMOTE to see if it is able to correct our data imbalance. SMOTE can be implemented through the `imblearn` Python library, which is built to be very similar to `sklearn`. 
+Let's try out SMOTE to see if it is able to correct our data imbalance. SMOTE can be implemented through the `imblearn` Python library, which is built to be very similar to `sklearn`.
 
 
 ```
@@ -689,8 +466,8 @@ X_train_upsample, y_train_upsample = smote_upsampler.fit_resample(X_train, y_tra
 print('After upsampling: \nX_train shape: {} \ny_train shape: {}'.format(X_train_upsample.shape, y_train_upsample.shape))
 ```
 
-    After upsampling: 
-    X_train shape: (454902, 30) 
+    After upsampling:
+    X_train shape: (454902, 30)
     y_train shape: (454902,)
 
 
@@ -700,9 +477,9 @@ plt.figure(figsize=(5,5))
 plt.title('Distribution of Target Variables After Upsampling \n(0 = Genuine | 1 = Fraudulent)')
 sns.countplot(y_train_upsample);
 ```
-
-
 ![png](figures/credit_card_fraud_detection_50_0.png)
+
+
 
 
 We can now see that thanks to SMOTE, we have an equal number of fraudulent and genuine transactions. This will help us to create more powerful models.
@@ -713,17 +490,17 @@ Before we apply SMOTE to models, however, we have to understand how to use cross
 
 Consider an example in which we have used SMOTE to create a new data point based on one of our fradulent card transactions. If the original transaction ends up in our training split and its augmented transaction ends up in the validation set, we have allowed information about the original transaction to leak into the validation set, since the new instance was generated from the original transaction.
 
-To avoid this issue, we will be sure to split our data into folds prior to augmenting the data with SMOTE. 
+To avoid this issue, we will be sure to split our data into folds prior to augmenting the data with SMOTE.
 
-Below, we create a function that will allow us to repeatedly use SMOTE with CV as we evaluate different models. 
+Below, we create a function that will allow us to repeatedly use SMOTE with CV as we evaluate different models.
 
 
 ```
 def smote_cv(model, X, y, parms=None, cv=5, random_state=0):
   '''
-  Given input data and model, this function will use SMOTE to 
+  Given input data and model, this function will use SMOTE to
   upsample the minority classes in the dataset and perform
-  cross validation without data leakage 
+  cross validation without data leakage
   '''
   smote_cv = StratifiedKFold(n_splits=cv, shuffle=False, random_state=random_state)
   smote = SMOTE(sampling_strategy='minority', k_neighbors=5)
@@ -745,24 +522,24 @@ def smote_cv(model, X, y, parms=None, cv=5, random_state=0):
 
     # Apply SMOTE, but only to the training fold
     X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
-    
+
     # Fit model with new data
     model_smote = model.fit(
         X_train_smote, y_train_smote
     )
-    
+
     # Make validation predictions
     y_pred = model_smote.predict(X_valid)
 
     #Score model using upsampled train data and original validation data
     f1 = f1_score(y_valid, y_pred)
-    recall = recall_score(y_valid, y_pred) 
-    precision = precision_score(y_valid, y_pred) 
+    recall = recall_score(y_valid, y_pred)
+    precision = precision_score(y_valid, y_pred)
 
     f1_scores.append(f1)
     recall_scores.append(recall)
     precision_scores.append(precision)
-  
+
   return {'f1': f1_scores, 'recall': recall_scores, 'precision': precision_scores}
 ```
 
@@ -796,9 +573,9 @@ smote_cv(log_clf, X_train, y_train)
 
 
 
-While this function works and will allow us to apply SMOTE, there is an easier implementation that involves imbalanced-learn's pipelines, which work in a manner similar to scikit-learn's pipelines. The pipelines will allow us to fit SMOTE and models before performing cross-validation, preventing data leakage. 
+While this function works and will allow us to apply SMOTE, there is an easier implementation that involves imbalanced-learn's pipelines, which work in a manner similar to scikit-learn's pipelines. The pipelines will allow us to fit SMOTE and models before performing cross-validation, preventing data leakage.
 
-**Note**: because the function names are identical to that of sklearn, it is important to be careful when importing, as this may overwrite existing sklearn pipeline functions. 
+**Note**: because the function names are identical to that of sklearn, it is important to be careful when importing, as this may overwrite existing sklearn pipeline functions.
 
 Below, we build a function that will create a pipeline and perform cross validation. This will make it easier for us to reproduce the process since all we expect to do is swap out the classifier.
 
@@ -819,7 +596,7 @@ def cv_pipeline(model, output_type = 'scores'):
              'precision': 'precision',
              'recall': 'recall'}
   cv_scores = cross_validate(pipeline, X_train, y_train, scoring = scoring, cv = k_fold)
-  
+
   # Average the recall and precision scores
   avg_precision = np.mean(cv_scores['test_precision'])
   avg_recall = np.mean(cv_scores['test_recall'])
@@ -844,12 +621,10 @@ def cv_pipeline(model, output_type = 'scores'):
 Because we are working with imbalanced data that focuses on the minority class, we will be working with precision and recall as our measures of success. The schematic below helps to visualize precision and recall ([Source](https://medium.com/@alon.lek/should-i-look-at-precision-recall-or-specificity-sensitivity-3946158aace1)). Note that in our case, 'positive' actually refers to fraudulent transactions in this diagram.
 
 
-
-
-
 ![png](figures/precision-recall.png)
 
-So what exactly are precision and recall, and why are they important here? Well, while we would typically use accuracy rates to assess our models when working with 2 classes that are equally present, accuracy is not very helpful in cases like ours, as choosing the more frequent class would give us over 99% accuracy every single time. 
+
+So what exactly are precision and recall, and why are they important here? Well, while we would typically use accuracy rates to assess our models when working with 2 classes that are equally present, accuracy is not very helpful in cases like ours, as choosing the more frequent class would give us over 99% accuracy every single time.
 
 Let's dive into precision and recall:
 
@@ -865,12 +640,12 @@ Let's dive into precision and recall:
 
 
 
-> Recall is the rate of true positives out of all transactions that are positive. In our case, this refers to the rate at which we are able to identify fraudulent transactions as fraudulent. For example, if we have 100 fraudulent transactions and only identified 50% of them as fraudulent, our recall would be 50%. 
+> Recall is the rate of true positives out of all transactions that are positive. In our case, this refers to the rate at which we are able to identify fraudulent transactions as fraudulent. For example, if we have 100 fraudulent transactions and only identified 50% of them as fraudulent, our recall would be 50%.
 
 > High recall is also crucial because it means that we are catching all of the fraudulent transactions.
 
 **3. F1 Score**
-> We want to achieve a high precision and recall, but there is a tradeoff. As precision goes up, recall goes down, since models tuned to prioritize recall will not perform as well with regards to precision, and vice versa. As we consider the tradeoff, we can use the F1 score as a metric, which is the harmonic mean of precision and recall. This acts as sort of a proxy for overall accuracy, and is sensitive to extreme numbers (i.e. if either recall or precision is poor, F1 will be poor as well). 
+> We want to achieve a high precision and recall, but there is a tradeoff. As precision goes up, recall goes down, since models tuned to prioritize recall will not perform as well with regards to precision, and vice versa. As we consider the tradeoff, we can use the F1 score as a metric, which is the harmonic mean of precision and recall. This acts as sort of a proxy for overall accuracy, and is sensitive to extreme numbers (i.e. if either recall or precision is poor, F1 will be poor as well).
 
 
 
@@ -878,7 +653,7 @@ Let's dive into precision and recall:
 
 
 
-Now that we know why precision and recall are important, let's test our function out. 
+Now that we know why precision and recall are important, let's test our function out.
 
 
 ```
@@ -886,20 +661,20 @@ Now that we know why precision and recall are important, let's test our function
 cv_pipeline(log_clf, output_type='print')
 ```
 
-    Model: LogisticRegression 
-    F1 score:0.1284 
-    Precision: 0.0691 
+    Model: LogisticRegression
+    F1 score:0.1284
+    Precision: 0.0691
     Recall: 0.9239
     CPU times: user 52.9 s, sys: 18 s, total: 1min 10s
     Wall time: 38.5 s
 
 
-Our function works, and it will make it very easy for us to repeat this process! As we can see, the model has high recall but very poor precision. This means that this model is falsely classifying transactions as fraudulent. However, we are not concerned, as this model is simply an initialization of logistic regression, with no customization at all. 
+Our function works, and it will make it very easy for us to repeat this process! As we can see, the model has high recall but very poor precision. This means that this model is falsely classifying transactions as fraudulent. However, we are not concerned, as this model is simply an initialization of logistic regression, with no customization at all.
 
 ## Building Base Classifiers
-Now that we have tackled the data imbalance, we can begin the process of building predictive models. To start, let's select a few classifiers, initialize them with basic parameters, and compare their performances! 
+Now that we have tackled the data imbalance, we can begin the process of building predictive models. To start, let's select a few classifiers, initialize them with basic parameters, and compare their performances!
 
-We will not use an exhaustive list of classifiers here, but will include a few standard classifiers (such as logistic regression) and some cutting-edge classifiers (XGBoost and LightGBM). 
+We will not use an exhaustive list of classifiers here, but will include a few standard classifiers (such as logistic regression) and some cutting-edge classifiers (XGBoost and LightGBM).
 
 
 ```
@@ -957,73 +732,16 @@ base_models.sort_values('f1_score', ascending=False)
 ```
 
 
-
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Model</th>
-      <th>f1_score</th>
-      <th>precision</th>
-      <th>recall</th>
-      <th>time</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>3</th>
-      <td>LGBMClassifier</td>
-      <td>0.725937</td>
-      <td>0.634738</td>
-      <td>0.85297</td>
-      <td>42.9684</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>RandomForestClassifier</td>
-      <td>0.383901</td>
-      <td>0.24643</td>
-      <td>0.885881</td>
-      <td>366.524</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>XGBClassifier</td>
-      <td>0.249842</td>
-      <td>0.145542</td>
-      <td>0.890944</td>
-      <td>411.601</td>
-    </tr>
-    <tr>
-      <th>0</th>
-      <td>LogisticRegression</td>
-      <td>0.121563</td>
-      <td>0.0651861</td>
-      <td>0.908698</td>
-      <td>38.6016</td>
-    </tr>
-  </tbody>
-</table>
-</div>
+                        Model  f1_score  precision    recall      time
+    0          LGBMClassifier  0.725937   0.634738  0.852970   42.9684
+    1  RandomForestClassifier  0.383901   0.246430  0.885881  366.5240
+    2           XGBClassifier  0.249842   0.145542  0.890944  411.6010
+    3      LogisticRegression  0.121563   0.065186  0.908698   38.6016
 
 
 
-Our base models had varying levels of performance with no parameters set. 
+
+Our base models had varying levels of performance with no parameters set.
 
 The Light GBM classifier performed very well with default parameters, and did so with only a fraction of the time that it took Random Forest. Considering the algorithm's speed, we will focus on this algorithm moving forest. Random Forest has the advantage of being a very accurate model that is relatively easy to tune, especially when allowed to grow trees without a max_depth set, but it takes much longer to achieve this accuracy. Light GBM is more challenging to tune and implement, but it appears to be the most promising model.
 
@@ -1031,11 +749,11 @@ Moving forward, we will explore the XGBoost and LightGBM algorithms. These algor
 
 ## Exploring Light GBM
 
-Light GBM offers three different implementations of gradient boosted ensemble methods. In our previous assessment, we used the gradient boosted decision trees (gbdt) method, which is the default. GBDT works by training a large number of weak decision trees. The algorithm first trains decision trees to fit the target variable, then trains subsequent decision trees on the residuals of the first tree (i.e. the difference between predicted target and actual target). 
+Light GBM offers three different implementations of gradient boosted ensemble methods. In our previous assessment, we used the gradient boosted decision trees (gbdt) method, which is the default. GBDT works by training a large number of weak decision trees. The algorithm first trains decision trees to fit the target variable, then trains subsequent decision trees on the residuals of the first tree (i.e. the difference between predicted target and actual target).
 
-GBDT, however, takes a while to find the best splits for the decision trees and is prone to overfitting. That's where the Goss method comes in: rather than training subsequent trees on all residuals, the Goss method only trains on the large residuals. This reduces the information needed for fitting each iteration and often results in faster fit times--thus "Light" GBM. 
+GBDT, however, takes a while to find the best splits for the decision trees and is prone to overfitting. That's where the Goss method comes in: rather than training subsequent trees on all residuals, the Goss method only trains on the large residuals. This reduces the information needed for fitting each iteration and often results in faster fit times--thus "Light" GBM.
 
-Because LGBM is prone to overfitting, we will plot the learning curves for the base model to discover how we can improve performance. Learning curves display model performance and fit times as a function of training size. Here, we will use the `sklearn` implementation introduced in our utility function section to analyze performance. 
+Because LGBM is prone to overfitting, we will plot the learning curves for the base model to discover how we can improve performance. Learning curves display model performance and fit times as a function of training size. Here, we will use the `sklearn` implementation introduced in our utility function section to analyze performance.
 
 
 ```
@@ -1055,13 +773,14 @@ lgb_pipeline = Pipeline([
 plot_learning_curve(lgb_pipeline, 'Light GBM Learning Curves', X_train, y_train, cv=k_fold);
 ```
 
-
 ![png](figures/credit_card_fraud_detection_76_0.png)
 
 
-These curves show us that as we increase the number of training examples, both training and validation performance decrease. This means that our model is overfitting. To combat overfitting, we will tune a few of our model parameters to weaken individual decision trees through regularization. While hyperparameter optimization would normally be a good option, it would take very long in this case, so we will tune our parameters manually and save hyperparameter optimization for the XGBoost model. 
 
-**Note:** This is an iterative process, through which we tested different parameter values and used the learning curves to guide our tuning. The learning curves help to visualize whether the model is over or underfitting, helping us to decide on which parameters to tune and what values to try. 
+
+These curves show us that as we increase the number of training examples, both training and validation performance decrease. This means that our model is overfitting. To combat overfitting, we will tune a few of our model parameters to weaken individual decision trees through regularization. While hyperparameter optimization would normally be a good option, it would take very long in this case, so we will tune our parameters manually and save hyperparameter optimization for the XGBoost model.
+
+**Note:** This is an iterative process, through which we tested different parameter values and used the learning curves to guide our tuning. The learning curves help to visualize whether the model is over or underfitting, helping us to decide on which parameters to tune and what values to try.
 
 
 ```
@@ -1072,9 +791,9 @@ lgb_clf = LGBMClassifier(
     # Max bin = 63 recommended for GPU
     max_bin = 63, gpu_use_dp = False, tree_learner = 'serial',
     # More operational parameters
-    n_jobs = -1, force_col_wise= True, verbose=0, 
+    n_jobs = -1, force_col_wise= True, verbose=0,
     # Model parameters
-    n_estimators = 100, 
+    n_estimators = 100,
     num_leaves = 255, learning_rate = 0.1,
     subsample = 0.7,
     )
@@ -1094,9 +813,9 @@ print('Time: {:.2f}'.format(time.time()-start))
 
     Time: 145.55
 
-
-
 ![png](figures/credit_card_fraud_detection_79_1.png)
+
+
 
 
 
@@ -1106,9 +825,9 @@ cv_pipeline(lgb_pipeline, output_type='print')
 print('Time: {:.2f}'.format(time.time()-start))
 ```
 
-    Model: Pipeline 
-    F1 score:0.8296 
-    Precision: 0.8327 
+    Model: Pipeline
+    F1 score:0.8296
+    Precision: 0.8327
     Recall: 0.8275
     Time: 38.20
 
@@ -1116,9 +835,9 @@ print('Time: {:.2f}'.format(time.time()-start))
 This is much better. We were able to maintain training accuracy while increasing cross-validation accuracy, so we are on the right path. Additionally, it looks like our model achieves high recall and high precision, which explains the high F1 score. We will continue to tune our model.
 
 ### Randomized Search (Sample Code)
-Below is the code for tuning LGBM hyperparameters using Randomized Search. Running only 50 iterations of this took a couple of hours and did not yield favorable results, so we will not focus on this. However, the code has been maintained for reference. 
+Below is the code for tuning LGBM hyperparameters using Randomized Search. Running only 50 iterations of this took a couple of hours and did not yield favorable results, so we will not focus on this. However, the code has been maintained for reference.
 
-We will tune our LGBM hyperparameters using Randomized Search. We will provide probability distributions for each parameter, depending on our expectations of where the ideal hyperparameter values will lie, then allow the sklearn implementation of RandomizedSearchCV to randomly search through the distributions for a set number of iterations. 
+We will tune our LGBM hyperparameters using Randomized Search. We will provide probability distributions for each parameter, depending on our expectations of where the ideal hyperparameter values will lie, then allow the sklearn implementation of RandomizedSearchCV to randomly search through the distributions for a set number of iterations.
 
 For LGBM we will use 2,000 iterations of Random Search. To do this, we will define the parameter space, create the pipeline, then call the Random Search. With this, we will search 2,000 different combinations of hyperparameters to find the most optimal set for our model.
 
@@ -1145,7 +864,7 @@ lgb_clf = LGBMClassifier(
     # Max bin = 63 recommended for GPU
     max_bin = 63, gpu_use_dp = False, tree_learner = 'serial',
     # More operational parameters
-    n_jobs = -1, force_col_wise= True, verbose=-1, 
+    n_jobs = -1, force_col_wise= True, verbose=-1,
     )
 
 lgb_pipeline = Pipeline([
@@ -1188,9 +907,8 @@ lgb_pipeline = Pipeline([
 
 plot_learning_curve(lgb_pipeline, 'Light GBM Learning Curves', X_train, y_train, cv=k_fold);
 ```
-
-
 ![png](figures/credit_card_fraud_detection_86_0.png)
+
 
 
 
@@ -1204,18 +922,18 @@ print('Time: {:.2f}'.format(time.time()-start))
     [LightGBM] [Warning] bagging_fraction is set=0.6591315214848038, subsample=1.0 will be ignored. Current value: bagging_fraction=0.6591315214848038
     [LightGBM] [Warning] bagging_fraction is set=0.6591315214848038, subsample=1.0 will be ignored. Current value: bagging_fraction=0.6591315214848038
     [LightGBM] [Warning] bagging_fraction is set=0.6591315214848038, subsample=1.0 will be ignored. Current value: bagging_fraction=0.6591315214848038
-    Model: Pipeline 
-    F1 score:0.8066 
-    Precision: 0.7967 
+    Model: Pipeline
+    F1 score:0.8066
+    Precision: 0.7967
     Recall: 0.8174
     Time: 63.51
 
 
-Unfortunately we need many more iterations in order to improve performance. We will try this with XGBoost since the algorithm will run much faster. 
+Unfortunately we need many more iterations in order to improve performance. We will try this with XGBoost since the algorithm will run much faster.
 
-## Exploring XGBoost 
+## Exploring XGBoost
 
-Let's evaluate XGBoost out of the box again, but this time with GPU enabled. 
+Let's evaluate XGBoost out of the box again, but this time with GPU enabled.
 
 
 ```
@@ -1233,16 +951,16 @@ cv_pipeline(xgb_pipeline, output_type='print')
 print('Time: {:.2f}'.format(time.time()-start))
 ```
 
-    Model: Pipeline 
-    F1 score:0.2599 
-    Precision: 0.1529 
+    Model: Pipeline
+    F1 score:0.2599
+    Precision: 0.1529
     Recall: 0.8935
     Time: 7.57
 
 
-Even with 5 fold cross validation using SMOTE, the entire operation on GPU took about 8 seconds! As with Light GBM, the GPU support will make our computations run much faster, which will allow us to run more iterations of search in the same amount of time. 
+Even with 5 fold cross validation using SMOTE, the entire operation on GPU took about 8 seconds! As with Light GBM, the GPU support will make our computations run much faster, which will allow us to run more iterations of search in the same amount of time.
 
-#### Randomized Search 
+#### Randomized Search
 
 
 ```
@@ -1307,8 +1025,9 @@ xgb_pipeline = Pipeline([
 plot_learning_curve(xgb_pipeline, 'XGBoost Learning Curves', X_train, y_train, cv=k_fold);
 ```
 
-
 ![png](figures/credit_card_fraud_detection_95_0.png)
+
+
 
 
 
@@ -1318,9 +1037,9 @@ cv_pipeline(xgb_pipeline, output_type='print')
 print('Time: {:.2f}'.format(time.time()-start))
 ```
 
-    Model: Pipeline 
-    F1 score:0.8211 
-    Precision: 0.7955 
+    Model: Pipeline
+    F1 score:0.8211
+    Precision: 0.7955
     Recall: 0.8503
     Time: 7.98
 
@@ -1382,16 +1101,16 @@ xgb_params
 
 
 
-With 1,000 iterations of XGBoost, it appears that this model had a similar performance to LGBM. 
+With 1,000 iterations of XGBoost, it appears that this model had a similar performance to LGBM.
 
 ## Evaluating Models on the Test Set
-In this last section, we will evaluate the various models on the test set. We will fit the tuned XGBoost and LightGBM models to the upsampled data, then use these models to predict on the test set, which has not been upsampled. 
+In this last section, we will evaluate the various models on the test set. We will fit the tuned XGBoost and LightGBM models to the upsampled data, then use these models to predict on the test set, which has not been upsampled.
 
-Additionally, we will also train an Artificial Neural Network (ANN) for classification. Deep Learning models have been proven to be very effective for classification problems, and we will assess whether they are able to perform as well as our GBM models. 
+Additionally, we will also train an Artificial Neural Network (ANN) for classification. Deep Learning models have been proven to be very effective for classification problems, and we will assess whether they are able to perform as well as our GBM models.
 
-We have reserved ANNs for this last step because we used SMOTE, and it would be very difficult to perform cross validation using ANNs in the way that we have with scikit-learn models. This is something that I may choose to explore in future projects. 
+We have reserved ANNs for this last step because we used SMOTE, and it would be very difficult to perform cross validation using ANNs in the way that we have with scikit-learn models. This is something that I may choose to explore in future projects.
 
-We will create one simple ANN architecture and create 2 models: the first model will be trained on the upsampled data, and the second model will be trained on the original data. We will then test these models and the gradient boosting models on the test data to see how they compare in terms of performance. This will allow us to compare neural networks and gradient boosting machines, but also show us exactly how impactful (if at all) SMOTE upsampling is for our classification problem. 
+We will create one simple ANN architecture and create 2 models: the first model will be trained on the upsampled data, and the second model will be trained on the original data. We will then test these models and the gradient boosting models on the test data to see how they compare in terms of performance. This will allow us to compare neural networks and gradient boosting machines, but also show us exactly how impactful (if at all) SMOTE upsampling is for our classification problem.
 
 ### Artificial Neural Networks
 
@@ -1416,17 +1135,17 @@ model.add(Dense(128, kernel_initializer=kernel_initializer))
 model.add(LeakyReLU())
 model.add(Dropout(0.3))
 
-# Hidden layer 
+# Hidden layer
 model.add(Dense(128, kernel_initializer=kernel_initializer))
 model.add(LeakyReLU())
 model.add(Dropout(0.3))
 
-# Hidden layer 
+# Hidden layer
 model.add(Dense(128, kernel_initializer=kernel_initializer))
 model.add(LeakyReLU())
 model.add(Dropout(0.3))
 
-# Output layer/classifier 
+# Output layer/classifier
 model.add(Dense(1, activation='sigmoid', kernel_initializer=kernel_initializer))
 
 # Compile the model
@@ -1436,8 +1155,8 @@ model.compile(loss='binary_crossentropy',optimizer=optimizer, metrics=['accuracy
 
 ```
 model.fit(
-    X_train, y_train, 
-    validation_data = (X_test, y_test), 
+    X_train, y_train,
+    validation_data = (X_test, y_test),
     epochs = 30, shuffle = False, batch_size = batch_size,
     callbacks = [callbacks]
 )
@@ -1519,12 +1238,16 @@ plot_confusion(y_test, y_pred)
 ```
 
 
+**Confusion Matrix for Neural Network Trained on Imbalanced Dataset**
+
 ![png](figures/credit_card_fraud_detection_108_0.png)
 
 
-Our neural network trained on the original imbalanced data had very high True Negative Rate, correctly classifying virtually 100% of genuine transactions as genuine. However, this model also had a high False Negative Rate, incorrectly classifying 27% of fraudulent transactions as genuine. 
 
-This is very concerning, as it means that this model would miss nearly a third of fraudulent transactions. In this case, we would prefer a model that errs on the side of classifying transactions as fraud. However, since the data was heavily imbalanced, this is exactly what we expected. Let's see then, if the neural network trained on the upsampled data performs any better. 
+
+Our neural network trained on the original imbalanced data had very high True Negative Rate, correctly classifying virtually 100% of genuine transactions as genuine. However, this model also had a high False Negative Rate, incorrectly classifying 27% of fraudulent transactions as genuine.
+
+This is very concerning, as it means that this model would miss nearly a third of fraudulent transactions. In this case, we would prefer a model that errs on the side of classifying transactions as fraud. However, since the data was heavily imbalanced, this is exactly what we expected. Let's see then, if the neural network trained on the upsampled data performs any better.
 
 #### Training on SMOTE Upsampled Data
 
@@ -1555,17 +1278,17 @@ model.add(Dense(128, kernel_initializer=kernel_initializer))
 model.add(LeakyReLU())
 model.add(Dropout(0.3))
 
-# Hidden layer 
+# Hidden layer
 model.add(Dense(128, kernel_initializer=kernel_initializer))
 model.add(LeakyReLU())
 model.add(Dropout(0.3))
 
-# Hidden layer 
+# Hidden layer
 model.add(Dense(128, kernel_initializer=kernel_initializer))
 model.add(LeakyReLU())
 model.add(Dropout(0.3))
 
-# Output layer/classifier 
+# Output layer/classifier
 model.add(Dense(1, activation='sigmoid', kernel_initializer=kernel_initializer))
 
 # Compile the model
@@ -1575,8 +1298,8 @@ model.compile(loss='binary_crossentropy',optimizer=optimizer, metrics=['accuracy
 
 ```
 model.fit(
-    X_train_upsample, y_train_upsample, 
-    validation_data = (X_test, y_test), 
+    X_train_upsample, y_train_upsample,
+    validation_data = (X_test, y_test),
     epochs = 30, shuffle = False, batch_size = batch_size,
     callbacks = [callbacks]
 )
@@ -1657,26 +1380,29 @@ y_pred = model.predict_classes(X_test, batch_size=batch_size)
 plot_confusion(y_test, y_pred)
 ```
 
+**Confusion Matrix for Neural Network Trained on SMOTE Upsampled Dataset**
 
 ![png](figures/credit_card_fraud_detection_115_0.png)
 
 
-Fortunately, we see that our neural network trained on the SMOTE upsampled data had a very high True Negative Rate and a lower False Negative Rate. This model will miss 16% of fraudulent transactions, which is not perfect--however, it is much better than the previous model. It will also incorrectly classify 3% of genuine transactions as fraud, but we are less concerned about that, as we want to ensure that we catch as much fraud as possible. 
+
+
+Fortunately, we see that our neural network trained on the SMOTE upsampled data had a very high True Negative Rate and a lower False Negative Rate. This model will miss 16% of fraudulent transactions, which is not perfect--however, it is much better than the previous model. It will also incorrectly classify 3% of genuine transactions as fraud, but we are less concerned about that, as we want to ensure that we catch as much fraud as possible.
 
 ### Gradient Boosting Models
-Now, let's evaluate our XGB and LGBM models on the test data and view the confusion matrices. To do so, we will train both models on the upsampled data then test on the original test set. 
+Now, let's evaluate our XGB and LGBM models on the test data and view the confusion matrices. To do so, we will train both models on the upsampled data then test on the original test set.
 
 #### Light GBM
-Using our manually tuned LGBM model, we will predict on the test set. 
+Using our manually tuned LGBM model, we will predict on the test set.
 
 
 ```
 model = LGBMClassifier(
     tree_learner = 'serial',
     # More operational parameters
-    n_jobs = -1, force_col_wise= True, verbose=0, 
+    n_jobs = -1, force_col_wise= True, verbose=0,
     # Model parameters
-    n_estimators = 100, 
+    n_estimators = 100,
     num_leaves = 255, learning_rate = 0.1,
     subsample = 0.7,
     )
@@ -1684,15 +1410,17 @@ model.fit(X_train_upsample, y_train_upsample)
 y_pred = model.predict(X_test)
 plot_confusion(y_test, y_pred)
 ```
-
+**Confusion Matrix for Light GBM Trained on SMOTE Upsampled Dataset**
 
 ![png](figures/credit_card_fraud_detection_119_0.png)
 
 
-The results of the confusion matrix show that the Light GBM model did not perform as well as the SMOTE neural network in terms of minimizing the False Negative Rate. However, it still performed better than the neural network trained on the imbalanced data. 
+
+
+The results of the confusion matrix show that the Light GBM model did not perform as well as the SMOTE neural network in terms of minimizing the False Negative Rate. However, it still performed better than the neural network trained on the imbalanced data.
 
 #### XGBoost
-We will rebuild the XGBoost model using the parameters determined through our Randomized Search. 
+We will rebuild the XGBoost model using the parameters determined through our Randomized Search.
 
 
 ```
@@ -1712,25 +1440,22 @@ model.fit(X_train_upsample, y_train_upsample)
 y_pred = model.predict(X_test)
 plot_confusion(y_test, y_pred)
 ```
-
+**Confusion Matrix for XGBoost Trained on SMOTE Upsampled Dataset**
 
 ![png](figures/credit_card_fraud_detection_122_0.png)
 
 
-Our last model, XGBoost, had a False Negative Rate of 12%, which was the lowest of the four models we evaluated. Interestingly, the model achieved this lowest False Negative Rate while maintaining a True Negative Rate of 99%, which is very good. This model, therefore, appears to be the most effective, as it finds an excellent balance between precision and recall. 
+
+
+Our last model, XGBoost, had a False Negative Rate of 12%, which was the lowest of the four models we evaluated. Interestingly, the model achieved this lowest False Negative Rate while maintaining a True Negative Rate of 99%, which is very good. This model, therefore, appears to be the most effective, as it finds an excellent balance between precision and recall.
 
 ## Discussion
-In this project, we evaluated a variety of models on a heavily imbalanced dataset of credit card transactions. The imbalanced data makes it difficult for machine learning models to accurately detect the minority class (in our case, fraudulent transactions), as the models have a tendency to predict the majority class (this is because, in nearly all cases, guessing the majority class will indeed be correct). 
+In this project, we evaluated a variety of models on a heavily imbalanced dataset of credit card transactions. The imbalanced data makes it difficult for machine learning models to accurately detect the minority class (in our case, fraudulent transactions), as the models have a tendency to predict the majority class (this is because, in nearly all cases, guessing the majority class will indeed be correct).
 
 Oversampling involves the artificial creation of new data points using the less frequently observed target variable.
 
-To counter data imbalance, we upsampled our data with a method known as   Synthetic Minority Oversampling Technique, or SMOTE. SMOTE is a data augmentation technique that generates new examples of the minority class using K Nearest Neighbors, artificially increasing the size of the minority class so that it is equal to the size of the majority class. We found that SMOTE helped our models perform better when classifying transactions as fraud, since the models had more data in this class.  
+To counter data imbalance, we upsampled our data with a method known as   Synthetic Minority Oversampling Technique, or SMOTE. SMOTE is a data augmentation technique that generates new examples of the minority class using K Nearest Neighbors, artificially increasing the size of the minority class so that it is equal to the size of the majority class. We found that SMOTE helped our models perform better when classifying transactions as fraud, since the models had more data in this class.
 
-When evaluating our models on the test set, we found that our XGBoost model tuned with Randomized Search had the best performance. This model was able to correctly classify 88% of fraudulent transactions as fraud and correctly classify 99% of genuine transactions as genuine. The model had a high precision and recall, even when compared to the other models we evaluated. 
+When evaluating our models on the test set, we found that our XGBoost model tuned with Randomized Search had the best performance. This model was able to correctly classify 88% of fraudulent transactions as fraud and correctly classify 99% of genuine transactions as genuine. The model had a high precision and recall, even when compared to the other models we evaluated.
 
-In conclusion, we found that the XGBoost model performed best, but that all models trained on the SMOTE data had similar performance. SMOTE is a very useful and powerful technique for working with imbalanced datasets. 
-
-
-```
-
-```
+In conclusion, we found that the XGBoost model performed best, but that all models trained on the SMOTE data had similar performance. SMOTE is a very useful and powerful technique for working with imbalanced datasets.
