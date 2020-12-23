@@ -1,4 +1,5 @@
 # Credit Card Fraud Detection
+[Read this post on my website](https://naingthet.github.io/posts/fraud/fraud/)
 
 ![jpg](figures/cc_fraud.jpg)
 
